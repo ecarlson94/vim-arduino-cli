@@ -3,7 +3,7 @@ if (exists('g:loaded_arduino_autoload') && g:loaded_arduino_autoload)
 endif
 let g:loaded_arduino_autoload = 1
 if has('win64') || has('win32') || has('win16')
-  echoerr "vim-arduino does not support windows :("
+  echoerr "vim-arduino-cli does not support windows :("
   finish
 endif
 let s:HERE = resolve(expand('<sfile>:p:h:h'))
@@ -33,38 +33,18 @@ function! arduino#InitializeConfig() abort
     if exists('g:_cache_arduino_programmer')
       let g:arduino_programmer = g:_cache_arduino_programmer
     else
-      let g:arduino_programmer = 'arduino:usbtinyisp'
+      let g:arduino_programmer = 'usbtinyisp'
     endif
   endif
   if !exists('g:arduino_args')
     let g:arduino_args = '--verbose'
   endif
-  if !exists('g:arduino_serial_cmd')
-    let g:arduino_serial_cmd = 'screen {port} {baud}'
-  endif
   if !exists('g:arduino_build_path')
     let g:arduino_build_path = '{project_dir}/build'
   endif
 
-  if !exists('g:arduino_serial_baud')
-    let g:arduino_serial_baud = 9600
-  endif
-  if !exists('g:arduino_auto_baud')
-    let g:arduino_auto_baud = 1
-  endif
   if !exists('g:arduino_use_slime')
     let g:arduino_use_slime = 0
-  endif
-  if !exists('g:arduino_upload_using_programmer')
-    let g:arduino_upload_using_programmer = 0
-  endif
-
-  if !exists('g:arduino_serial_port_globs')
-    let g:arduino_serial_port_globs = ['/dev/ttyACM*',
-                                      \'/dev/ttyUSB*',
-                                      \'/dev/tty.usbmodem*',
-                                      \'/dev/tty.usbserial*',
-                                      \'/dev/tty.wchusbserial*']
   endif
 endfunction
 
@@ -98,133 +78,62 @@ function! arduino#GetArduinoExecutable() abort
   endif
 endfunction
 
-function! arduino#GetBuildPath() abort
-  if empty(g:arduino_build_path)
-    return ''
-  endif
-  let l:path = g:arduino_build_path
+function! arduino#SubstituePath(path) abort
+  let l:path = a:path
   let l:path = substitute(l:path, '{file}', expand('%:p'), 'g')
   let l:path = substitute(l:path, '{project_dir}', expand('%:p:h'), 'g')
   return l:path
 endfunction
 
-
-function! arduino#GetArduinoCommand(cmd) abort
-  let arduino = arduino#GetArduinoExecutable()
-
-  let cmd = arduino . ' ' . a:cmd . " --board " . g:arduino_board
-  let port = arduino#GetPort()
-  if !empty(port)
-    let cmd = cmd . " --port " . port
+function! arduino#GetBuildPath() abort
+  if empty(g:arduino_build_path)
+    return ''
   endif
-  if !empty(g:arduino_programmer)
-    let cmd = cmd . " --pref programmer=" . g:arduino_programmer
-  endif
-  let l:build_path = arduino#GetBuildPath()
-  if !empty(l:build_path)
-    let cmd = cmd . " --pref " . '"build.path=' . l:build_path . '"'
-  endif
-  let cmd = cmd . " " . g:arduino_args . ' "' . expand('%:p') . '"'
-  return cmd
+  return arduino#SubstituePath(g:arduino_build_path)
 endfunction
 
 function! arduino#GetBoards() abort
-  " let boards = []
-  " for [dir,meta] in items(s:hardware_dirs)
-  "   if !isdirectory(dir)
-  "     continue
-  "   endif
-  "   let filename = dir . '/boards.txt'
-  "   if !filereadable(filename)
-  "     continue
-  "   endif
-  "   let lines = readfile(filename)
-  "   for line in lines
-  "     if line =~? '^[^.]*\.name=.*$'
-  "       let linesplit = split(line, '\.')
-  "       let board = linesplit[0]
-  "       let linesplit = split(line, '=')
-  "       let name = linesplit[1]
-  "       let board = meta.package . ':' . meta.arch . ':' . board
-  "       if index(boards, board) == -1
-  "         call add(boards, board)
-  "       endif
-  "     endif
-  "   endfor
-  "   unlet dir meta
-  " endfor
-  " return boards
+  let arduino = arduino#GetArduinoExecutable()
+  let cmd = arduino . " board list --format json"
+
+  let addresses = filter(js_decode(system(cmd)), "exists('v:val.boards')")
+  let boards = []
+  for address in addresses
+    for board in address.board
+      board.address = address.address
+      board.protocol = address.protocol
+      board.protocol_label = address.protocol_label
+      call add(boards, board)
+    endfor
+  endfor
+  return boards
 endfunction
 
-function! arduino#GetBoardOptions(board) abort
-  " " Board will be in the format package:arch:board
-  " let [package, arch, boardname] = split(a:board, ':')
-
-  " " Find all boards.txt files with that package/arch
-  " let boardfiles = []
-  " for [dir,meta] in items(s:hardware_dirs)
-  "   if meta.package == package && meta.arch == arch
-  "     call add(boardfiles, dir.'/boards.txt')
-  "   endif
-  "   unlet dir meta
-  " endfor
-
-  " " Find the boards.txt file with the board definition and read the options
-  " for filename in boardfiles
-  "   if !filereadable(filename)
-  "     continue
-  "   endif
-  "   let lines = readfile(filename)
-  "   let pattern = '^' . boardname . '\.menu\.\([^.]*\)\.\([^.]*\)='
-  "   let options = {}
-  "   let matched = 0
-  "   for line in lines
-  "     if line =~? pattern
-  "       let matched = 1
-  "       let groups = matchlist(line, pattern)
-  "       let option = groups[1]
-  "       let value = groups[2]
-  "       if !has_key(options, option)
-  "         let options[option] = []
-  "       endif
-  "       let optlist = get(options, option)
-  "       call add(optlist, value)
-  "     endif
-  "   endfor
-  "   if matched
-  "     return options
-  "   endif
-  " endfor
-  " return {}
+function! arduino#GetFullyQualifiedBoardNames() abort
+  let boards = arduino#GetBoards()
+  let fqbns = []
+  for board in board
+    if index(fqbns, board.FQBN) == -1
+      call add(fqbns, board.FQBN)
+    endif
+  endfor
 endfunction
 
 function! arduino#GetProgrammers() abort
-  " let programmers = []
-  " for [dir,meta] in items(s:hardware_dirs)
-  "   if !isdirectory(dir)
-  "     continue
-  "   endif
-  "   let filename = dir . '/programmers.txt'
-  "   if !filereadable(filename)
-  "     continue
-  "   endif
-  "   let lines = readfile(filename)
-  "   for line in lines
-  "     if line =~? '^[^.]*\.name=.*$'
-  "       let linesplit = split(line, '\.')
-  "       let programmer = linesplit[0]
-  "       let prog = meta.package . ':' . programmer
-  "       if index(programmers, prog) == -1
-  "         call add(programmers, prog)
-  "       endif
-  "     endif
-  "   endfor
-  " endfor
-  " return sort(programmers)
-endfunction
+  if !exists('g:arduino_board')
+    arduino#ChooseBoard()
+  endif
+  let arduino = arduino#GetArduinoExecutable()
+  let cmd = arduino . " board details -b " . g:arduino_board . "  --list-programmers -f --format json"
 
-function! arduino#RebuildMakePrg() abort
-  let &l:makeprg = arduino#GetArduinoCommand("--verify")
+  let boardDetails = js_decode(system(cmd))
+  let programmers = []
+  for programmer in boardDetails.programmers
+    if index(programmers, programmer.id) == -1
+      call add(programmers, programmer.id)
+    endif
+  endif
+  return sort(programmers)
 endfunction
 
 function! s:BoardOrder(b1, b2) abort
@@ -254,50 +163,31 @@ endfunction
 
 " Board selection {{{2
 
-let s:callback_data = {}
-
 " Display a list of boards to the user and allow them to choose the active one
+function! arduino#GetActiveBoard() abort
+  if !exists('g:arduino_board')
+    arduino#ChooseBoard()
+  endif
+  return g:arduino_board
+endfunction
+
 function! arduino#ChooseBoard(...) abort
   if a:0
     call arduino#SetBoard(a:1)
     return
   endif
-  let boards = arduino#GetBoards()
-  call sort(boards, 's:BoardOrder')
-  call arduino#Choose('Arduino Board', boards, 'arduino#SelectBoard')
+  let boards = arduino#GetFullyQualifiedBoardNames()
+  if empty(boards)
+    echoeer "No boards to choose from"
+  else
+    call sort(boards, 's:BoardOrder')
+    call arduino#Choose('Arduino Board', boards, 'arduino#SelectBoard')
+  endif
 endfunction
 
 " Callback from board selection. Sets the board and prompts for any options
 function! arduino#SelectBoard(board) abort
-  let options = arduino#GetBoardOptions(a:board)
   call arduino#SetBoard(a:board)
-  let s:callback_data = {
-        \ 'board': a:board,
-        \ 'available_opts': options,
-        \ 'opts': {},
-        \ 'active_option': '',
-        \}
-  call arduino#ChooseBoardOption()
-endfunction
-
-" Prompt user for the next unselected board option
-function! arduino#ChooseBoardOption() abort
-  let available_opts = s:callback_data.available_opts
-  for opt in keys(available_opts)
-    if !has_key(s:callback_data.opts, opt)
-      let s:callback_data.active_option = opt
-      call arduino#Choose(opt, available_opts[opt], 'arduino#SelectOption')
-      return
-    endif
-  endfor
-endfunction
-
-" Callback from option selection
-function! arduino#SelectOption(value) abort
-  let opt = s:callback_data.active_option
-  let s:callback_data.opts[opt] = a:value
-  call arduino#SetBoard(s:callback_data.board, s:callback_data.opts)
-  call arduino#ChooseBoardOption()
 endfunction
 
 " Programmer selection {{{2
@@ -314,7 +204,6 @@ endfunction
 function! arduino#SetProgrammer(programmer) abort
   let g:_cache_arduino_programmer = a:programmer
   let g:arduino_programmer = a:programmer
-  call arduino#RebuildMakePrg()
   call arduino#SaveCache()
 endfunction
 
@@ -331,14 +220,32 @@ function! arduino#SetBoard(board, ...) abort
       let prevchar = ','
     endfor
   endif
-  let g:arduino_board = board
+  let g:arduino_board = a:board
   let g:_cache_arduino_board = board
-  call arduino#RebuildMakePrg()
   call arduino#SaveCache()
 endfunction
 
-function! arduino#Verify() abort
-  let cmd = arduino#GetArduinoCommand("--verify")
+function! arduino#GetCompileCommand() abort
+  let arduino = arduino#GetArduinoExecutable()
+  let board = arduino#GetActiveBoard()
+  let l:build_path = arduino#GetBuildPath()
+  let l:sketch_path = arduino#SubstituePath("{project_dir}")
+  let cmd = arduino . " compile -b " . board . ' ' . l:sketch_path . " --build-path " . l:build_path
+
+  let boardParts = split(board, ':')
+  let core = boardParts[0] . boardParts[1]
+  let installedCores = json_decode(system(arduino . " core list --format json"))
+  let requiredCoreInstalled = !empty(filter(installedCores, 'v:val.ID=="'. core . '""'))
+  if !requiredCoreInstalled
+    cmd = arduino . " core install " . core . " && " . cmd
+  endif
+
+  return cmd
+endfunction
+
+function! arduino#Compile() abort
+  let cmd = arduino#GetCompileCommand()
+
   if g:arduino_use_slime
     call slime#send(cmd."\r")
   else
@@ -348,12 +255,14 @@ function! arduino#Verify() abort
 endfunction
 
 function! arduino#Upload() abort
-  if g:arduino_upload_using_programmer
-    let cmd_options = "--upload --useprogrammer"
-  else
-    let cmd_options = "--upload"
+  let cmd = arduino#GetCompileCommand()
+  let port = arduino#GetPort()
+  let cmd = cmd . " --upload -p " . port
+
+  if exists('g:arduino_programmer')
+    cmd = cmd . " --programmer " . g:arduino_programmer
   endif
-  let cmd = arduino#GetArduinoCommand(cmd_options)
+
   if g:arduino_use_slime
     call slime#send(cmd."\r")
   else
@@ -362,9 +271,11 @@ function! arduino#Upload() abort
   return v:shell_error
 endfunction
 
-function! arduino#Serial() abort
-  let cmd = arduino#GetSerialCmd()
-  if empty(cmd) | return | endif
+function! arduino#Attach() abort
+  let arduino = arduino#GetArduinoExecutable()
+  let board = arduino#GetActiveBoard()
+  let cmd = arduino . " board attach " . board
+
   if g:arduino_use_slime
     call slime#send(cmd."\r")
   else
@@ -372,51 +283,33 @@ function! arduino#Serial() abort
   endif
 endfunction
 
-function! arduino#UploadAndSerial() abort
+function! arduino#UploadAndAttach() abort
   let ret = arduino#Upload()
   if ret == 0
-    call arduino#Serial()
+    call arduino#Attach()
   endif
 endfunction
 
 " Serial helpers {{{2
 
-function! arduino#GetSerialCmd() abort
-  let port = arduino#GetPort()
-  if empty(port)
-    echoerr "Error! No serial port found"
-    return ''
-  endif
-  let l:cmd = substitute(g:arduino_serial_cmd, '{port}', port, 'g')
-  let l:cmd = substitute(l:cmd, '{baud}', g:arduino_serial_baud, 'g')
-  return l:cmd
-endfunction
-
-function! arduino#SetBaud(baud) abort
-  let g:arduino_serial_baud = a:baud
-endfunction
-
-function! arduino#SetAutoBaud() abort
-  let n = 1
-  while n < line("$")
-    let match = matchlist(getline(n), 'Serial[0-9]*\.begin(\([0-9]*\)')
-    if len(match) >= 2
-      let g:arduino_serial_baud = match[1]
-      return
-    endif
-    let n = n + 1
-  endwhile
-endfunction
-
 function! arduino#GetPorts() abort
+  let boards = arduino#GetBoards()
+  if emtpy(boards)
+    return []
+  endif
   let ports = []
-  for l:glob in g:arduino_serial_port_globs
-    let found = glob(l:glob, 1, 1)
-    for port in found
-      call add(ports, port)
-    endfor
+  let board = arduino#GetActiveBoard()
+  for b in boards
+    if b.FQBN == board
+      call add(ports, b.address)
+    endif
   endfor
-  return ports
+  if empty(ports)
+    arduino#ChooseBoard()
+    arduino#GetPorts()
+  else
+    return ports
+  endif
 endfunction
 
 function! arduino#GuessSerialPort() abort
@@ -437,7 +330,6 @@ function! arduino#GetPort() abort
 endfunction
 
 "}}}2
-
 " Utility functions {{{1
 "
 let s:fzf_counter = 0
@@ -483,13 +375,6 @@ function! arduino#Choose(title, items, callback) abort
   endif
 endfunction
 
-function! arduino#FindExecutable(name) abort
-  let path = substitute(system('command -v ' . a:name), "\n*$", '', '')
-  if empty(path) | return 0 | endif
-  let abspath = resolve(path)
-  return abspath
-endfunction
-
 function! s:CacheLine(lines, varname) abort
   if exists(a:varname)
     let value = eval(a:varname)
@@ -503,11 +388,10 @@ function! arduino#GetInfo() abort
   if empty(port)
       let port = "none"
   endif
-  echo "Board         : " . g:arduino_board
-  echo "Programmer    : " . g:arduino_programmer
-  echo "Port          : " . port
-  echo "Baud rate     : " . g:arduino_serial_baud
-  echo "Verify command: " . arduino#GetArduinoCommand("--verify")
+  echo "Board          : " . g:arduino_board
+  echo "Programmer     : " . g:arduino_programmer
+  echo "Port           : " . port
+  echo "Compile command: " . arduino#GetCompileCommand()
 endfunction
 
 " Ctrlp extension {{{1

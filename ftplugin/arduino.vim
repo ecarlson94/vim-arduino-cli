@@ -11,19 +11,13 @@ endif
 " Use C rules for indentation
 setl cindent
 
-call arduino#RebuildMakePrg()
-
-if g:arduino_auto_baud
-  au BufReadPost,BufWritePost *.ino call arduino#SetAutoBaud()
-endif
 
 command! -buffer -bar -nargs=? ArduinoChooseBoard call arduino#ChooseBoard(<f-args>)
 command! -buffer -bar -nargs=? ArduinoChooseProgrammer call arduino#ChooseProgrammer(<f-args>)
-command! -buffer -bar ArduinoVerify call arduino#Verify()
+command! -buffer -bar ArduinoCompile call arduino#Compile()
 command! -buffer -bar ArduinoUpload call arduino#Upload()
-command! -buffer -bar ArduinoSerial call arduino#Serial()
-command! -buffer -bar ArduinoUploadAndSerial call arduino#UploadAndSerial()
+command! -buffer -bar ArduinoAttach call arduino#Attach()
+command! -buffer -bar ArduinoUploadAndAttach call arduino#UploadAndAttach()
 command! -buffer -bar ArduinoGetInfo call arduino#GetInfo()
 command! -buffer -bar ArduinoInfo call arduino#GetInfo()
 command! -buffer -bar -nargs=? ArduinoChoosePort call arduino#ChoosePort(<f-args>)
-command! -buffer -bar -nargs=1 ArduinoSetBaud call arduino#SetBaud(<f-args>)
