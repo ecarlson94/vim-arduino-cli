@@ -24,10 +24,7 @@ OPTIONS                                                       *arduino-options*
 Overview:~
 
   |arduino_cmd|..................Path to the arduino executable
-  |arduino_dir|..................Path to the arduino install directory
-  |arduino_home_dir|.............Path to the arduino user install directory
   |arduino_build_path|...........Path to use for building the sketch
-  |arduino_run_headless|.........Try to run inside Xvfb
   |arduino_args|.................Additional args to pass to 'arduino' command.
   |arduino_board|................The fully-qualified name of the board.
   |arduino_programmer|...........The programmer type.
@@ -42,22 +39,8 @@ Overview:~
 Detailed descriptions and default values:~
 
                                                                 *'g:arduino_cmd'*
-The path to the 'arduino' command. By default it will look in your PATH, or in
-Applications on Mac. >
-  let g:arduino_cmd = '/usr/share/local/arduino/arduino'
-<
-                                                                *'g:arduino_dir'*
-The path to your 'arduino' directory. Usually vim-arduino will be able to
-detect it, but if it cannot you can set the value manually. This is used to
-search for the built-in board definitions (i.e. the Uno and Nano) >
-  let g:arduino_dir = '/usr/share/local/arduino'
-<
-
-                                                           *'g:arduino_home_dir'*
-The path to your user's 'arduino' data directory. Usually vim-arduino will be
-able to detect it, but if it cannot you can set the value manually. This is used
-to search for board definitions installed by the IDE Board Manager. >
-  let g:arduino_home_dir = $HOME . ".arduino15"
+The path to the 'arduino-cli' command. By default it will look in your PATH. >
+  let g:arduino_cmd = '/usr/local/bin/arduino-cli'
 <
 
                                                          *'g:arduino_build_path'*
@@ -71,18 +54,12 @@ Usage of a build path can be disabled with g:arduino_build_path = ''.
 If disabled, arduino ide chooses a temporary path and will do a full rebuild. >
   let g:arduino_build_path = "{project_dir}/build"
 <
-
-                                                       *'g:arduino_run_headless'*
-Run the arduino command inside a Xvfb. Requires Xvfb to be installed and in the
-PATH. >
-  let g:arduino_run_headless = 1
-<
                                                                *'g:arduino_args'*
 Additional arguments that will be passed to the 'arduino' command during build
 and upload. See
-https://github.com/arduino/Arduino/blob/master/build/shared/manpage.adoc for
+https://arduino.github.io/arduino-cli/latest/commands/arduino-cli/#options for
 more detail. >
-  let g:arduino_args = '--verbose-upload'
+  let g:arduino_args = '--verbose'
 <
                                                               *'g:arduino_board'*
 The board type to use when compiling and uploading. See also

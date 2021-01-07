@@ -12,13 +12,12 @@ let s:OS = substitute(system('uname'), '\n', '', '')
 if has('nvim')
   let s:TERM = 'botright split | terminal! '
 elseif has('terminal')
-  " In vim, doing terminal! will automatically open in a new split
+  " In vim, doing "terminal!" will automatically open in a new split
   let s:TERM = 'terminal! '
 else
   " Backwards compatible with old versions of vim
   let s:TERM = '!'
 endif
-let s:hardware_dirs = {}
 
 " Initialization {{{1
 " Set up all user configuration variables
@@ -38,7 +37,7 @@ function! arduino#InitializeConfig() abort
     endif
   endif
   if !exists('g:arduino_args')
-    let g:arduino_args = '--verbose-upload'
+    let g:arduino_args = '--verbose'
   endif
   if !exists('g:arduino_serial_cmd')
     let g:arduino_serial_cmd = 'screen {port} {baud}'
@@ -60,10 +59,6 @@ function! arduino#InitializeConfig() abort
     let g:arduino_upload_using_programmer = 0
   endif
 
-  if !exists('g:arduino_run_headless')
-    let g:arduino_run_headless = executable('Xvfb') ? 1 : 0
-  endif
-
   if !exists('g:arduino_serial_port_globs')
     let g:arduino_serial_port_globs = ['/dev/ttyACM*',
                                       \'/dev/ttyUSB*',
@@ -71,62 +66,6 @@ function! arduino#InitializeConfig() abort
                                       \'/dev/tty.usbserial*',
                                       \'/dev/tty.wchusbserial*']
   endif
-  call arduino#ReloadBoards()
-endfunction
-
-" Boards and programmer definitions {{{1
-function! arduino#ReloadBoards() abort
-  " First let's search the arduino system install for boards
-  " The path looks like /hardware/<package>/<arch>/boards.txt
-  let arduino_dir = arduino#GetArduinoDir()
-  let filenames = split(globpath(arduino_dir . '/hardware', '**/boards.txt'), '\n')
-  for filename in filenames
-    let pieces = split(filename, '/')
-    let package = pieces[-3]
-    let arch = pieces[-2]
-    call arduino#AddHardwareDir(package, arch, filename)
-  endfor
-
-  " Now search any packages installed in the home dir
-  " The path looks like /packages/<package>/hardware/<arch>/<version>/boards.txt
-  let arduino_home_dir = arduino#GetArduinoHomeDir()
-  let packagedirs = split(globpath(arduino_home_dir . '/packages', '*'), '\n')
-  for packagedir in packagedirs
-    let package = fnamemodify(packagedir, ':t')
-    let archdirs = split(globpath(packagedir . '/hardware', '*'), '\n')
-    for archdir in archdirs
-      let arch = fnamemodify(archdir, ':t')
-      let filenames = split(globpath(archdir, '**/boards.txt'), '\n')
-      for filename in filenames
-        call arduino#AddHardwareDir(package, arch, filename)
-      endfor
-    endfor
-  endfor
-
-  " Some platforms put the default arduino boards/programmers in /etc/arduino
-  if filereadable('/etc/arduino/boards.txt')
-    call arduino#AddHardwareDir('arduino', 'avr', '/etc/arduino')
-  endif
-  if empty(s:hardware_dirs)
-    echoerr "Could not find any boards.txt or programmers.txt files. Please set g:arduino_dir and/or g:arduino_home_dir (see help for details)"
-  endif
-endfunction
-
-function! arduino#AddHardwareDir(package, arch, file) abort
-  " If a boards.txt file was passed in, get the parent dir
-  if !isdirectory(a:file)
-    let filepath = fnamemodify(a:file, ':h')
-  else
-    let filepath = a:file
-  endif
-  if !isdirectory(filepath)
-    echoerr 'Could not find hardware directory or file '. a:file
-    return
-  endif
-  let s:hardware_dirs[filepath] = {
-    \ "package": a:package,
-    \ "arch": a:arch,
-    \}
 endfunction
 
 " Caching {{{1
@@ -154,10 +93,8 @@ endfunction
 function! arduino#GetArduinoExecutable() abort
   if exists('g:arduino_cmd')
     return g:arduino_cmd
-  elseif s:OS == 'Darwin'
-    return '/Applications/Arduino.app/Contents/MacOS/Arduino'
   else
-    return 'arduino'
+    return 'arduino-cli'
   endif
 endfunction
 
@@ -174,10 +111,6 @@ endfunction
 
 function! arduino#GetArduinoCommand(cmd) abort
   let arduino = arduino#GetArduinoExecutable()
-
-  if g:arduino_run_headless
-    let arduino = s:HERE . '/bin/run-headless ' . arduino
-  endif
 
   let cmd = arduino . ' ' . a:cmd . " --board " . g:arduino_board
   let port = arduino#GetPort()
@@ -196,98 +129,98 @@ function! arduino#GetArduinoCommand(cmd) abort
 endfunction
 
 function! arduino#GetBoards() abort
-  let boards = []
-  for [dir,meta] in items(s:hardware_dirs)
-    if !isdirectory(dir)
-      continue
-    endif
-    let filename = dir . '/boards.txt'
-    if !filereadable(filename)
-      continue
-    endif
-    let lines = readfile(filename)
-    for line in lines
-      if line =~? '^[^.]*\.name=.*$'
-        let linesplit = split(line, '\.')
-        let board = linesplit[0]
-        let linesplit = split(line, '=')
-        let name = linesplit[1]
-        let board = meta.package . ':' . meta.arch . ':' . board
-        if index(boards, board) == -1
-          call add(boards, board)
-        endif
-      endif
-    endfor
-    unlet dir meta
-  endfor
-  return boards
+  " let boards = []
+  " for [dir,meta] in items(s:hardware_dirs)
+  "   if !isdirectory(dir)
+  "     continue
+  "   endif
+  "   let filename = dir . '/boards.txt'
+  "   if !filereadable(filename)
+  "     continue
+  "   endif
+  "   let lines = readfile(filename)
+  "   for line in lines
+  "     if line =~? '^[^.]*\.name=.*$'
+  "       let linesplit = split(line, '\.')
+  "       let board = linesplit[0]
+  "       let linesplit = split(line, '=')
+  "       let name = linesplit[1]
+  "       let board = meta.package . ':' . meta.arch . ':' . board
+  "       if index(boards, board) == -1
+  "         call add(boards, board)
+  "       endif
+  "     endif
+  "   endfor
+  "   unlet dir meta
+  " endfor
+  " return boards
 endfunction
 
 function! arduino#GetBoardOptions(board) abort
-  " Board will be in the format package:arch:board
-  let [package, arch, boardname] = split(a:board, ':')
+  " " Board will be in the format package:arch:board
+  " let [package, arch, boardname] = split(a:board, ':')
 
-  " Find all boards.txt files with that package/arch
-  let boardfiles = []
-  for [dir,meta] in items(s:hardware_dirs)
-    if meta.package == package && meta.arch == arch
-      call add(boardfiles, dir.'/boards.txt')
-    endif
-    unlet dir meta
-  endfor
+  " " Find all boards.txt files with that package/arch
+  " let boardfiles = []
+  " for [dir,meta] in items(s:hardware_dirs)
+  "   if meta.package == package && meta.arch == arch
+  "     call add(boardfiles, dir.'/boards.txt')
+  "   endif
+  "   unlet dir meta
+  " endfor
 
-  " Find the boards.txt file with the board definition and read the options
-  for filename in boardfiles
-    if !filereadable(filename)
-      continue
-    endif
-    let lines = readfile(filename)
-    let pattern = '^' . boardname . '\.menu\.\([^.]*\)\.\([^.]*\)='
-    let options = {}
-    let matched = 0
-    for line in lines
-      if line =~? pattern
-        let matched = 1
-        let groups = matchlist(line, pattern)
-        let option = groups[1]
-        let value = groups[2]
-        if !has_key(options, option)
-          let options[option] = []
-        endif
-        let optlist = get(options, option)
-        call add(optlist, value)
-      endif
-    endfor
-    if matched
-      return options
-    endif
-  endfor
-  return {}
+  " " Find the boards.txt file with the board definition and read the options
+  " for filename in boardfiles
+  "   if !filereadable(filename)
+  "     continue
+  "   endif
+  "   let lines = readfile(filename)
+  "   let pattern = '^' . boardname . '\.menu\.\([^.]*\)\.\([^.]*\)='
+  "   let options = {}
+  "   let matched = 0
+  "   for line in lines
+  "     if line =~? pattern
+  "       let matched = 1
+  "       let groups = matchlist(line, pattern)
+  "       let option = groups[1]
+  "       let value = groups[2]
+  "       if !has_key(options, option)
+  "         let options[option] = []
+  "       endif
+  "       let optlist = get(options, option)
+  "       call add(optlist, value)
+  "     endif
+  "   endfor
+  "   if matched
+  "     return options
+  "   endif
+  " endfor
+  " return {}
 endfunction
 
 function! arduino#GetProgrammers() abort
-  let programmers = []
-  for [dir,meta] in items(s:hardware_dirs)
-    if !isdirectory(dir)
-      continue
-    endif
-    let filename = dir . '/programmers.txt'
-    if !filereadable(filename)
-      continue
-    endif
-    let lines = readfile(filename)
-    for line in lines
-      if line =~? '^[^.]*\.name=.*$'
-        let linesplit = split(line, '\.')
-        let programmer = linesplit[0]
-        let prog = meta.package . ':' . programmer
-        if index(programmers, prog) == -1
-          call add(programmers, prog)
-        endif
-      endif
-    endfor
-  endfor
-  return sort(programmers)
+  " let programmers = []
+  " for [dir,meta] in items(s:hardware_dirs)
+  "   if !isdirectory(dir)
+  "     continue
+  "   endif
+  "   let filename = dir . '/programmers.txt'
+  "   if !filereadable(filename)
+  "     continue
+  "   endif
+  "   let lines = readfile(filename)
+  "   for line in lines
+  "     if line =~? '^[^.]*\.name=.*$'
+  "       let linesplit = split(line, '\.')
+  "       let programmer = linesplit[0]
+  "       let prog = meta.package . ':' . programmer
+  "       if index(programmers, prog) == -1
+  "         call add(programmers, prog)
+  "       endif
+  "     endif
+  "   endfor
+  " endfor
+  " return sort(programmers)
 endfunction
 
 function! arduino#RebuildMakePrg() abort
@@ -564,45 +497,16 @@ function! s:CacheLine(lines, varname) abort
   endif
 endfunction
 
-function! arduino#GetArduinoDir() abort
-  if exists('g:arduino_dir')
-    return g:arduino_dir
-  endif
-  let executable = arduino#GetArduinoExecutable()
-  let arduino_cmd = arduino#FindExecutable(executable)
-  let arduino_dir = fnamemodify(arduino_cmd, ':h')
-  if s:OS == 'Darwin'
-    let arduino_dir = fnamemodify(arduino_dir, ':h') . '/Java'
-  endif
-  return arduino_dir
-endfunction
-
-function! arduino#GetArduinoHomeDir() abort
-  if exists('g:arduino_home_dir')
-    return g:arduino_home_dir
-  endif
-  if s:OS == 'Darwin'
-    return $HOME . "/Library/Arduino15"
-  endif
-
-  return $HOME . "/.arduino15"
-endfunction
-
 " Print the current configuration
 function! arduino#GetInfo() abort
   let port = arduino#GetPort()
   if empty(port)
       let port = "none"
   endif
-  let dirs = join(keys(s:hardware_dirs), ', ')
-  if empty(dirs)
-    let dirs = 'None'
-  endif
   echo "Board         : " . g:arduino_board
   echo "Programmer    : " . g:arduino_programmer
   echo "Port          : " . port
   echo "Baud rate     : " . g:arduino_serial_baud
-  echo "Hardware dirs : " . dirs
   echo "Verify command: " . arduino#GetArduinoCommand("--verify")
 endfunction
 
