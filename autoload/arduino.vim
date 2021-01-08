@@ -424,8 +424,14 @@ function! arduino#GetInfo() abort
   if empty(port)
       let port = "none"
   endif
+
+  let programmer = 'none'
+  if exists('g:arduino_programmer')
+    let programmer = g:arduino_programmer
+  endif
+
   echo "Board          : " . g:arduino_board
-  echo "Programmer     : " . g:arduino_programmer
+  echo "Programmer     : " . programmer
   echo "Port           : " . port
   echo "Compile command: " . arduino#GetCompileCommand()
 endfunction
