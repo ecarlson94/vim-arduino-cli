@@ -392,7 +392,7 @@ function! arduino#Upload() abort
     let cmd = cmd . " --programmer " . g:arduino_programmer
   endif
 
-  arduino#InvokeCommand(cmd)
+  call arduino#InvokeCommand(cmd)
   return v:shell_error
 endfunction
 
@@ -404,7 +404,7 @@ function! arduino#Attach() abort
     let cmd = cmd . ' ' . g:arduino_args
   endif
 
-  arduino#InvokeCommand(cmd)
+  callarduino#InvokeCommand(cmd)
 endfunction
 
 function! arduino#UploadAndAttach() abort
