@@ -105,10 +105,10 @@ function! arduino#GetBoards() abort
   let addresses = filter(addresses, "exists('v:val.boards')")
 
   let boards = []
-  for address in addresses
-    for board in address.boards
-      board.address = address.address
-      board.protocol = address.protocol
+  for l:address in addresses
+    for board in l:address.boards
+      board.address = l:address.address
+      board.protocol = l:address.protocol
       board.protocol_label = address.protocol_label
       call add(boards, board)
     endfor
