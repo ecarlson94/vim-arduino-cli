@@ -65,8 +65,8 @@ To make easy use of these, you may want to bind them to a key combination. You
 can put the following in `.vim/ftplugin/arduino.vim`:
 
 ```vim
-nnoremap <buffer> <leader>as :ArduinoLibrarySearch<space>
-nnoremap <buffer> <leader>ai :ArduinoLibraryInstall<space>
+nnoremap <buffer> <leader>as :ArduinoLibSearch<CR>
+nnoremap <buffer> <leader>ai :ArduinoLibInstall<CR>
 nnoremap <buffer> <leader>am :ArduinoCompile<CR>
 nnoremap <buffer> <leader>au :ArduinoUpload<CR>
 nnoremap <buffer> <leader>ad :ArduinoUploadAndAttach<CR>

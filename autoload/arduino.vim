@@ -272,6 +272,7 @@ function! s:fzf_leave(callback, item)
   call function(a:callback)(a:item)
   let s:fzf_counter -= 1
 endfunction
+
 function! s:mk_fzf_callback(callback)
   return { item -> s:fzf_leave(a:callback, item) }
 endfunction
@@ -406,27 +407,27 @@ function! arduino#Attach() abort
   arduino#InvokeCommand(cmd)
 endfunction
 
-function! arduino#LibSearch(query) abort
-  let arduino = arduino#GetArduinoExecutable()
-  let cmd = arduino . " lib search " . query
-
-  arduino#InvokeCommand(cmd)
-  return v:shell_error
-endfunction
-
-function! arduino#LibInstall(lib) abort
-  let arduino = arduino#GetArduinoExecutable()
-  let cmd = arduino . " lib install " . lib
-
-  arduino#InvokeCommand(cmd)
-  return v:shell_error
-endfunction!
-
 function! arduino#UploadAndAttach() abort
   let ret = arduino#Upload()
   if ret == 0
     call arduino#Attach()
   endif
+endfunction
+
+function! arduino#LibSearch(query) abort
+  let arduino = arduino#GetArduinoExecutable()
+  let cmd = arduino . " lib search " . a:query
+
+  call arduino#InvokeCommand(cmd)
+  return v:shell_error
+endfunction
+
+function! arduino#LibInstall(library) abort
+  let arduino = arduino#GetArduinoExecutable()
+  let cmd = arduino . " lib install " . a:library
+
+  call arduino#InvokeCommand(cmd)
+  return v:shell_error
 endfunction
 
 " Print the current configuration
