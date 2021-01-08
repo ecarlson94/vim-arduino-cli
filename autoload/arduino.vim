@@ -107,9 +107,9 @@ function! arduino#GetBoards() abort
   let boards = []
   for l:address in addresses
     for board in l:address.boards
-      board.address = l:address.address
-      board.protocol = l:address.protocol
-      board.protocol_label = address.protocol_label
+      let board.address = l:address.address
+      let board.protocol = l:address.protocol
+      let board.protocol_label = address.protocol_label
       call add(boards, board)
     endfor
   endfor
