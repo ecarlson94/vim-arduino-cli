@@ -53,6 +53,8 @@ The main commands you will want to use are:
 * `:ArduinoChooseBoard` - Select the type of board from a list.
 * `:ArduinoChooseProgrammer` - Select the programmer from a list.
 * `:ArduinoChoosePort` - Select the serial port from a list.
+* `:ArduinoLibSearch` - Search for a library to install.
+* `:ArduinoLibInstall` - Install a specific library.
 * `:ArduinoCompile` - Build the sketch.
 * `:ArduinoUpload` - Build and upload the sketch.
 * `:ArduinoAttach` - Connect to the board for debugging over a serial port.
@@ -63,6 +65,8 @@ To make easy use of these, you may want to bind them to a key combination. You
 can put the following in `.vim/ftplugin/arduino.vim`:
 
 ```vim
+nnoremap <buffer> <leader>as :ArduinoLibrarySearch<space>
+nnoremap <buffer> <leader>ai :ArduinoLibraryInstall<space>
 nnoremap <buffer> <leader>am :ArduinoCompile<CR>
 nnoremap <buffer> <leader>au :ArduinoUpload<CR>
 nnoremap <buffer> <leader>ad :ArduinoUploadAndAttach<CR>

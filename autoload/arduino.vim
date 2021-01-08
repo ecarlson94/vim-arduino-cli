@@ -218,17 +218,6 @@ function! arduino#SetBoard(board, ...) abort
   call arduino#SaveCache()
 endfunction
 
-function! arduino#Compile() abort
-  let cmd = arduino#GetCompileCommand()
-
-  if g:arduino_use_slime
-    call slime#send(cmd."\r")
-  else
-    exe s:TERM . cmd
-  endif
-  return v:shell_error
-endfunction
-
 " Serial helpers {{{2
 
 function! arduino#GetPorts() abort
@@ -270,7 +259,14 @@ endfunction
 
 "}}}2
 " Utility functions {{{1
-"
+function! arduino#InvokeCommand(cmd) abort
+  if g:arduino_use_slime
+    call slime#send(a:cmd."\r")
+  else
+    exe s:TERM . a:cmd
+  endif
+endfunction
+
 let s:fzf_counter = 0
 function! s:fzf_leave(callback, item)
   call function(a:callback)(a:item)
@@ -379,6 +375,13 @@ function! arduino#ChooseProgrammer(...) abort
   call arduino#Choose('Arduino Programmer', programmers, 'arduino#SetProgrammer')
 endfunction
 
+function! arduino#Compile() abort
+  let cmd = arduino#GetCompileCommand()
+
+  arduino#InvokeCommand(cmd)
+  return v:shell_error
+endfunction
+
 function! arduino#Upload() abort
   let cmd = arduino#GetCompileCommand()
   let port = arduino#GetPort()
@@ -388,11 +391,7 @@ function! arduino#Upload() abort
     let cmd = cmd . " --programmer " . g:arduino_programmer
   endif
 
-  if g:arduino_use_slime
-    call slime#send(cmd."\r")
-  else
-    exe s:TERM . cmd
-  endif
+  arduino#InvokeCommand(cmd)
   return v:shell_error
 endfunction
 
@@ -404,12 +403,24 @@ function! arduino#Attach() abort
     let cmd = cmd . ' ' . g:arduino_args
   endif
 
-  if g:arduino_use_slime
-    call slime#send(cmd."\r")
-  else
-    exe s:TERM . cmd
-  endif
+  arduino#InvokeCommand(cmd)
 endfunction
+
+function! arduino#LibSearch(query) abort
+  let arduino = arduino#GetArduinoExecutable()
+  let cmd = arduino . " lib search " . query
+
+  arduino#InvokeCommand(cmd)
+  return v:shell_error
+endfunction
+
+function! arduino#LibInstall(lib) abort
+  let arduino = arduino#GetArduinoExecutable()
+  let cmd = arduino . " lib install " . lib
+
+  arduino#InvokeCommand(cmd)
+  return v:shell_error
+endfunction!
 
 function! arduino#UploadAndAttach() abort
   let ret = arduino#Upload()

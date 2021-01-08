@@ -12,6 +12,8 @@
 :ArduinoChooseProgrammer	arduino.txt	/*:ArduinoChooseProgrammer*
 :ArduinoCompile	arduino.txt	/*:ArduinoCompile*
 :ArduinoInfo	arduino.txt	/*:ArduinoInfo*
+:ArduinoLibSearch	arduino.txt	/*:ArduinoLibSearch*
+:ArduinoLibInstall	arduino.txt	/*:ArduinoLibInstall*
 :ArduinoUpload	arduino.txt	/*:ArduinoUpload*
 :ArduinoUploadAndAttach	arduino.txt	/*:ArduinoUploadAndAttach*
 Arduino	arduino.txt	/*Arduino*

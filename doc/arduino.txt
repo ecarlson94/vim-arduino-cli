@@ -111,6 +111,14 @@ COMMANDS                                                       *arduino-commands
    Set [port] to be the currently selected serial port. If passed no
    arguments, open a list of likely ports and let the user select one.
 
+                                                                 *:ArduinoLibSearch*
+:ArduinoLibSearch
+   Search for Arduino  Libaries to install
+
+                                                                 *:ArduinoLibInstall*
+:ArduinoLibInstall
+   Install a specific Arduino Library
+
                                                                  *:ArduinoCompile*
 :ArduinoCompile
    Compile your project. This will also be the default behavior of the |:make|

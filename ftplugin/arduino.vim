@@ -14,6 +14,8 @@ setl cindent
 
 command! -buffer -bar -nargs=? ArduinoChooseBoard call arduino#ChooseBoard(<f-args>)
 command! -buffer -bar -nargs=? ArduinoChooseProgrammer call arduino#ChooseProgrammer(<f-args>)
+command! -buffer -bar ArduinoLibSearch call arduino#LibSearch()
+command! -buffer -bar ArduinoLibInstall call arduino#LibInstall()
 command! -buffer -bar ArduinoCompile call arduino#Compile()
 command! -buffer -bar ArduinoUpload call arduino#Upload()
 command! -buffer -bar ArduinoAttach call arduino#Attach()
