@@ -96,7 +96,7 @@ function! arduino#GetBoards() abort
   let arduino = arduino#GetArduinoExecutable()
   let cmd = arduino . " board list --format json"
 
-  let addresses = filter(js_decode(system(cmd)), "exists('v:val.boards')")
+  let addresses = filter(eval(system(cmd)), "exists('v:val.boards')")
   let boards = []
   for address in addresses
     for board in address.board
@@ -126,7 +126,7 @@ function! arduino#GetProgrammers() abort
   let arduino = arduino#GetArduinoExecutable()
   let cmd = arduino . " board details -b " . g:arduino_board . "  --list-programmers -f --format json"
 
-  let boardDetails = js_decode(system(cmd))
+  let boardDetails = eval(system(cmd))
   let programmers = []
   for programmer in boardDetails.programmers
     if index(programmers, programmer.id) == -1
