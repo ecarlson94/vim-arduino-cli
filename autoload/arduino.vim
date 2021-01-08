@@ -32,8 +32,6 @@ function! arduino#InitializeConfig() abort
   if !exists('g:arduino_programmer')
     if exists('g:_cache_arduino_programmer')
       let g:arduino_programmer = g:_cache_arduino_programmer
-    else
-      let g:arduino_programmer = 'usbtinyisp'
     endif
   endif
   if !exists('g:arduino_args')
@@ -124,6 +122,7 @@ function! arduino#GetFullyQualifiedBoardNames() abort
       call add(fqbns, board.FQBN)
     endif
   endfor
+  return fqbns
 endfunction
 
 function! arduino#GetProgrammers() abort
@@ -145,7 +144,7 @@ function! arduino#GetProgrammers() abort
     if index(programmers, programmer.id) == -1
       call add(programmers, programmer.id)
     endif
-  endif
+  endfor
   return sort(programmers)
 endfunction
 
@@ -246,11 +245,11 @@ function! arduino#GetCompileCommand() abort
   let cmd = arduino . " compile -b " . board . ' ' . l:sketch_path . " --build-path " . l:build_path
 
   let boardParts = split(board, ':')
-  let core = boardParts[0] . boardParts[1]
+  let core = boardParts[0] . ":" . boardParts[1]
   let installedCores = json_decode(system(arduino . " core list --format json"))
   let requiredCoreInstalled = !empty(filter(installedCores, 'v:val.ID=="'. core . '"'))
   if !requiredCoreInstalled
-    cmd = arduino . " core install " . core . " && " . cmd
+    let cmd = arduino . " core install " . core . " && " . cmd
   endif
 
   return cmd
@@ -273,7 +272,7 @@ function! arduino#Upload() abort
   let cmd = cmd . " --upload -p " . port
 
   if exists('g:arduino_programmer')
-    cmd = cmd . " --programmer " . g:arduino_programmer
+    let cmd = cmd . " --programmer " . g:arduino_programmer
   endif
 
   if g:arduino_use_slime
@@ -307,7 +306,7 @@ endfunction
 
 function! arduino#GetPorts() abort
   let boards = arduino#GetBoards()
-  if emtpy(boards)
+  if empty(boards)
     return []
   endif
   let ports = []
