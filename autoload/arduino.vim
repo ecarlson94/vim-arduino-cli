@@ -76,6 +76,27 @@ function! arduino#GetArduinoExecutable() abort
   endif
 endfunction
 
+function! arduino#GetCompileCommand() abort
+  let arduino = arduino#GetArduinoExecutable()
+  let board = arduino#GetActiveBoard()
+  let l:build_path = arduino#GetBuildPath()
+  let l:sketch_path = arduino#SubstituePath("{project_dir}")
+  let cmd = arduino . " compile -b " . board . ' ' . l:sketch_path . " --build-path " . l:build_path
+  if !empty(g:arduino_args)
+    let cmd = cmd . ' ' . g:arduino_args
+  endif
+
+  let boardParts = split(board, ':')
+  let core = boardParts[0] . ":" . boardParts[1]
+  let installedCores = json_decode(system(arduino . " core list --format json"))
+  let requiredCoreInstalled = !empty(filter(installedCores, 'v:val.ID=="'. core . '"'))
+  if !requiredCoreInstalled
+    let cmd = arduino . " core install " . core . " && " . cmd
+  endif
+
+  return cmd
+endfunction
+
 function! arduino#SubstituePath(path) abort
   let l:path = a:path
   let l:path = substitute(l:path, '{file}', expand('%:p'), 'g')
@@ -155,26 +176,11 @@ function! s:BoardOrder(b1, b2) abort
 endfunction
 
 " Port selection {{{2
-
-function! arduino#ChoosePort(...) abort
-  if a:0
-    let g:arduino_serial_port = a:1
-    return
-  endif
-  let ports = arduino#GetPorts()
-  if empty(ports)
-    echoerr "No likely serial ports detected!"
-  else
-    call arduino#Choose('Port', ports, 'arduino#SelectPort')
-  endif
-endfunction
-
 function! arduino#SelectPort(port) abort
   let g:arduino_serial_port = a:port
 endfunction
 
 " Board selection {{{2
-
 " Display a list of boards to the user and allow them to choose the active one
 function! arduino#GetActiveBoard() abort
   if !exists('g:arduino_board')
@@ -183,36 +189,12 @@ function! arduino#GetActiveBoard() abort
   return g:arduino_board
 endfunction
 
-function! arduino#ChooseBoard(...) abort
-  if a:0
-    call arduino#SetBoard(a:1)
-    return
-  endif
-  let boards = arduino#GetFullyQualifiedBoardNames()
-  if empty(boards)
-    echoeer "No boards to choose from"
-  else
-    call sort(boards, 's:BoardOrder')
-    call arduino#Choose('Arduino Board', boards, 'arduino#SelectBoard')
-  endif
-endfunction
-
 " Callback from board selection. Sets the board and prompts for any options
 function! arduino#SelectBoard(board) abort
   call arduino#SetBoard(a:board)
 endfunction
 
 " Programmer selection {{{2
-
-function! arduino#ChooseProgrammer(...) abort
-  if a:0
-    call arduino#SetProgrammer(a:1)
-    return
-  endif
-  let programmers = arduino#GetProgrammers()
-  call arduino#Choose('Arduino Programmer', programmers, 'arduino#SetProgrammer')
-endfunction
-
 function! arduino#SetProgrammer(programmer) abort
   let g:_cache_arduino_programmer = a:programmer
   let g:arduino_programmer = a:programmer
@@ -220,7 +202,6 @@ function! arduino#SetProgrammer(programmer) abort
 endfunction
 
 " Command functions {{{2
-
 " Set the active board
 function! arduino#SetBoard(board, ...) abort
   let board = a:board
@@ -237,27 +218,6 @@ function! arduino#SetBoard(board, ...) abort
   call arduino#SaveCache()
 endfunction
 
-function! arduino#GetCompileCommand() abort
-  let arduino = arduino#GetArduinoExecutable()
-  let board = arduino#GetActiveBoard()
-  let l:build_path = arduino#GetBuildPath()
-  let l:sketch_path = arduino#SubstituePath("{project_dir}")
-  let cmd = arduino . " compile -b " . board . ' ' . l:sketch_path . " --build-path " . l:build_path
-  if !empty(g:arduino_args)
-    let cmd = cmd . ' ' . g:arduino_args
-  endif
-
-  let boardParts = split(board, ':')
-  let core = boardParts[0] . ":" . boardParts[1]
-  let installedCores = json_decode(system(arduino . " core list --format json"))
-  let requiredCoreInstalled = !empty(filter(installedCores, 'v:val.ID=="'. core . '"'))
-  if !requiredCoreInstalled
-    let cmd = arduino . " core install " . core . " && " . cmd
-  endif
-
-  return cmd
-endfunction
-
 function! arduino#Compile() abort
   let cmd = arduino#GetCompileCommand()
 
@@ -267,45 +227,6 @@ function! arduino#Compile() abort
     exe s:TERM . cmd
   endif
   return v:shell_error
-endfunction
-
-function! arduino#Upload() abort
-  let cmd = arduino#GetCompileCommand()
-  let port = arduino#GetPort()
-  let cmd = cmd . " --upload -p " . port
-
-  if exists('g:arduino_programmer')
-    let cmd = cmd . " --programmer " . g:arduino_programmer
-  endif
-
-  if g:arduino_use_slime
-    call slime#send(cmd."\r")
-  else
-    exe s:TERM . cmd
-  endif
-  return v:shell_error
-endfunction
-
-function! arduino#Attach() abort
-  let arduino = arduino#GetArduinoExecutable()
-  let board = arduino#GetActiveBoard()
-  let cmd = arduino . " board attach " . board
-  if !empty(g:arduino_args)
-    let cmd = cmd . ' ' . g:arduino_args
-  endif
-
-  if g:arduino_use_slime
-    call slime#send(cmd."\r")
-  else
-    exe s:TERM . cmd
-  endif
-endfunction
-
-function! arduino#UploadAndAttach() abort
-  let ret = arduino#Upload()
-  if ret == 0
-    call arduino#Attach()
-  endif
 endfunction
 
 " Serial helpers {{{2
@@ -400,18 +321,6 @@ function! s:CacheLine(lines, varname) abort
   endif
 endfunction
 
-" Print the current configuration
-function! arduino#GetInfo() abort
-  let port = arduino#GetPort()
-  if empty(port)
-      let port = "none"
-  endif
-  echo "Board          : " . g:arduino_board
-  echo "Programmer     : " . g:arduino_programmer
-  echo "Port           : " . port
-  echo "Compile command: " . arduino#GetCompileCommand()
-endfunction
-
 " Ctrlp extension {{{1
 if exists('g:ctrlp_ext_vars')
   let g:arduino_ctrlp_enabled = 1
@@ -446,3 +355,91 @@ else
 endif
 
 " vim:fen:fdm=marker:fmr={{{,}}}
+" Exposed Functions {{{1
+function! arduino#ChooseBoard(...) abort
+  if a:0
+    call arduino#SetBoard(a:1)
+    return
+  endif
+  let boards = arduino#GetFullyQualifiedBoardNames()
+  if empty(boards)
+    echoeer "No boards to choose from"
+  else
+    call sort(boards, 's:BoardOrder')
+    call arduino#Choose('Arduino Board', boards, 'arduino#SelectBoard')
+  endif
+endfunction
+
+function! arduino#ChooseProgrammer(...) abort
+  if a:0
+    call arduino#SetProgrammer(a:1)
+    return
+  endif
+  let programmers = arduino#GetProgrammers()
+  call arduino#Choose('Arduino Programmer', programmers, 'arduino#SetProgrammer')
+endfunction
+
+function! arduino#Upload() abort
+  let cmd = arduino#GetCompileCommand()
+  let port = arduino#GetPort()
+  let cmd = cmd . " --upload -p " . port
+
+  if exists('g:arduino_programmer')
+    let cmd = cmd . " --programmer " . g:arduino_programmer
+  endif
+
+  if g:arduino_use_slime
+    call slime#send(cmd."\r")
+  else
+    exe s:TERM . cmd
+  endif
+  return v:shell_error
+endfunction
+
+function! arduino#Attach() abort
+  let arduino = arduino#GetArduinoExecutable()
+  let board = arduino#GetActiveBoard()
+  let cmd = arduino . " board attach " . board
+  if !empty(g:arduino_args)
+    let cmd = cmd . ' ' . g:arduino_args
+  endif
+
+  if g:arduino_use_slime
+    call slime#send(cmd."\r")
+  else
+    exe s:TERM . cmd
+  endif
+endfunction
+
+function! arduino#UploadAndAttach() abort
+  let ret = arduino#Upload()
+  if ret == 0
+    call arduino#Attach()
+  endif
+endfunction
+
+" Print the current configuration
+function! arduino#GetInfo() abort
+  let port = arduino#GetPort()
+  if empty(port)
+      let port = "none"
+  endif
+  echo "Board          : " . g:arduino_board
+  echo "Programmer     : " . g:arduino_programmer
+  echo "Port           : " . port
+  echo "Compile command: " . arduino#GetCompileCommand()
+endfunction
+
+function! arduino#ChoosePort(...) abort
+  if a:0
+    let g:arduino_serial_port = a:1
+    return
+  endif
+  let ports = arduino#GetPorts()
+  if empty(ports)
+    echoerr "No likely serial ports detected!"
+  else
+    call arduino#Choose('Port', ports, 'arduino#SelectPort')
+  endif
+endfunction
+
