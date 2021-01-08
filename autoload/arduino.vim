@@ -119,7 +119,7 @@ endfunction
 function! arduino#GetFullyQualifiedBoardNames() abort
   let boards = arduino#GetBoards()
   let fqbns = []
-  for board in board
+  for board in boards
     if index(fqbns, board.FQBN) == -1
       call add(fqbns, board.FQBN)
     endif
