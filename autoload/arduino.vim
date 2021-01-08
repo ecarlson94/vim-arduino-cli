@@ -102,7 +102,7 @@ function! arduino#GetBoards() abort
   else
     let addresses = js_decode(system(cmd))
   endif
-  let addresses = filter(addresses), "exists('v:val.boards')")
+  let addresses = filter(addresses, "exists('v:val.boards')")
 
   let boards = []
   for address in addresses
