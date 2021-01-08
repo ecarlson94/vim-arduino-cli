@@ -243,6 +243,9 @@ function! arduino#GetCompileCommand() abort
   let l:build_path = arduino#GetBuildPath()
   let l:sketch_path = arduino#SubstituePath("{project_dir}")
   let cmd = arduino . " compile -b " . board . ' ' . l:sketch_path . " --build-path " . l:build_path
+  if !empty(g:arduino_args)
+    let cmd = cmd . ' ' . g:arduino_args
+  endif
 
   let boardParts = split(board, ':')
   let core = boardParts[0] . ":" . boardParts[1]
@@ -287,6 +290,9 @@ function! arduino#Attach() abort
   let arduino = arduino#GetArduinoExecutable()
   let board = arduino#GetActiveBoard()
   let cmd = arduino . " board attach " . board
+  if !empty(g:arduino_args)
+    let cmd = cmd . ' ' . g:arduino_args
+  endif
 
   if g:arduino_use_slime
     call slime#send(cmd."\r")
