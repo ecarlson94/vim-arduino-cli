@@ -97,6 +97,29 @@ function! arduino#GetCompileCommand() abort
   return cmd
 endfunction
 
+function! arduino#GetUploadCommand() abort
+  let cmd = arduino#GetCompileCommand()
+  let port = arduino#GetPort()
+  let cmd = cmd . " --upload -p " . port
+
+  if exists('g:arduino_programmer')
+    let cmd = cmd . " --programmer " . g:arduino_programmer
+  endif
+
+  return cmd
+endfunction
+
+function! arduino#GetAttachCommand() abort
+  let arduino = arduino#GetArduinoExecutable()
+  let board = arduino#GetActiveBoard()
+  let cmd = arduino . " board attach " . board
+  if !empty(g:arduino_args)
+    let cmd = cmd . ' ' . g:arduino_args
+  endif
+
+  return cmd
+endfunction
+
 function! arduino#SubstituePath(path) abort
   let l:path = a:path
   let l:path = substitute(l:path, '{file}', expand('%:p'), 'g')
@@ -384,9 +407,7 @@ function! arduino#Compile() abort
 endfunction
 
 function! arduino#Upload() abort
-  let cmd = arduino#GetCompileCommand()
-  let port = arduino#GetPort()
-  let cmd = cmd . " --upload -p " . port
+  let cmd = arduino#GetUploadCommand()
 
   if exists('g:arduino_programmer')
     let cmd = cmd . " --programmer " . g:arduino_programmer
@@ -397,21 +418,19 @@ function! arduino#Upload() abort
 endfunction
 
 function! arduino#Attach() abort
-  let arduino = arduino#GetArduinoExecutable()
-  let board = arduino#GetActiveBoard()
-  let cmd = arduino . " board attach " . board
-  if !empty(g:arduino_args)
-    let cmd = cmd . ' ' . g:arduino_args
-  endif
+  let cmd = arduino#GetAttachCommand()
 
   call arduino#InvokeCommand(cmd)
+  return v:shell_error
 endfunction
 
 function! arduino#UploadAndAttach() abort
-  let ret = arduino#Upload()
-  if ret == 0
-    call arduino#Attach()
-  endif
+  let upload = arduino#GetUploadCommand()
+  let attach = arduino#GetAttachCommand()
+  let cmd = upload . " && " . attach
+
+  call arduino#InvokeCommand(cmd)
+  return v:shell_error
 endfunction
 
 function! arduino#LibSearch(query) abort
