@@ -235,7 +235,7 @@ function! arduino#GetCompileCommand() abort
   let boardParts = split(board, ':')
   let core = boardParts[0] . boardParts[1]
   let installedCores = json_decode(system(arduino . " core list --format json"))
-  let requiredCoreInstalled = !empty(filter(installedCores, 'v:val.ID=="'. core . '""'))
+  let requiredCoreInstalled = !empty(filter(installedCores, 'v:val.ID=="'. core . '"'))
   if !requiredCoreInstalled
     cmd = arduino . " core install " . core . " && " . cmd
   endif
