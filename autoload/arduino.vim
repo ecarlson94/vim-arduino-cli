@@ -148,7 +148,7 @@ endfunction
 
 function! arduino#GetProgrammers() abort
   if !exists('g:arduino_board')
-    arduino#ChooseBoard()
+    call arduino#ChooseBoard()
   endif
   let arduino = arduino#GetArduinoExecutable()
   let cmd = arduino . " board details -b " . g:arduino_board . "  --list-programmers -f --format json"
@@ -184,7 +184,7 @@ endfunction
 " Display a list of boards to the user and allow them to choose the active one
 function! arduino#GetActiveBoard() abort
   if !exists('g:arduino_board')
-    arduino#ChooseBoard()
+    call arduino#ChooseBoard()
   endif
   return g:arduino_board
 endfunction
@@ -233,8 +233,8 @@ function! arduino#GetPorts() abort
     endif
   endfor
   if empty(ports)
-    arduino#ChooseBoard()
-    arduino#GetPorts()
+    call arduino#ChooseBoard()
+    call arduino#GetPorts()
   else
     return ports
   endif
@@ -379,7 +379,7 @@ endfunction
 function! arduino#Compile() abort
   let cmd = arduino#GetCompileCommand()
 
-  arduino#InvokeCommand(cmd)
+  call arduino#InvokeCommand(cmd)
   return v:shell_error
 endfunction
 
@@ -404,7 +404,7 @@ function! arduino#Attach() abort
     let cmd = cmd . ' ' . g:arduino_args
   endif
 
-  callarduino#InvokeCommand(cmd)
+  call arduino#InvokeCommand(cmd)
 endfunction
 
 function! arduino#UploadAndAttach() abort
